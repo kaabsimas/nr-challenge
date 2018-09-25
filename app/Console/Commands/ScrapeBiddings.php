@@ -24,13 +24,6 @@ class ScrapeBiddings extends Command
     protected $description = 'Scrape data from given URLs';
 
     /**
-    * A global variable to hold scraped data
-    *
-    * @var string
-    */
-    protected $content = '';
-
-    /**
     * A list of known URLs to scrap.
     *
     * @var array
@@ -97,13 +90,17 @@ class ScrapeBiddings extends Command
         $pagination = $crawler->filter('ul.lfr-pagination-buttons li:nth-child(3)');
         $page = 0;
 
-        $this->content = '';
+        $content = [];
         $bar = $this->output->createProgressBar(150);
         while( $crawler->filter('ul.lfr-pagination-buttons li:nth-child(3).disabled')->count() == 0 ){
-            $biddings = $crawler->filter('.resultado-licitacao table tr h4.titLicitacao');
-            $biddings->each(function($node) use($client, $biddings){
+            $biddings = $crawler->filter('.resultado-licitacao table tr div.licitacoes');
+            $biddings->each(function($node) use($client, $biddings, &$content){
+                $title          = $node->filter('h4.titLicitacao')->text();
+                $description    = $node->filter('.cont_licitacoes')->text();
+                $starting       = $node->filter('.data_licitacao span:first-child')->text();
+                $posts          = $node->filter('.data_licitacao span:last-child')->text();
                 try{
-                    $this->content .= $node->text() . "\n";
+                    $content[] = [$title, $description, $starting, $posts];
                 }catch(Exception $er){
                     $this->error($er->message());
                     die();
@@ -115,7 +112,17 @@ class ScrapeBiddings extends Command
         }
         $bar->finish();
         $this->line("\n");
-        Storage::put('licitações.txt', $this->content);
+        $content = array_merge([['Licitação','Descrição', 'Abertura', 'Publicações']], $content);
+        $this->write('licitações', $content);
         return;
     } 
+
+    private function write( $filename, $content )
+    {
+        \Excel::create($filename, function($excel) use ($content){
+            $excel->sheet('data', function($sheet) use ($content){
+                $sheet->fromArray($content);
+            });
+        })->store('xls');
+    }
 }
