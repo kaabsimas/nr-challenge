@@ -19,9 +19,34 @@ Simply run
 ## Usage
 
 Type:
-	
-	php artisan scrape cnpq
 
-For now it's all, it gonna crawl into all pages of http://www.cnpq.br/web/guest/licitacoes and save it's biddings data into an excel file inside storage/export
+    php artisanscrape https://kaabsimas.github.io
+This code should print on console the raw text of given url. To filter with an CSS Quer, use the `-f` or `--filter` option:
 
-Soon it'll have the sebrae and ecompras options, to search through www.scf2.sebrae.com.br/portalcf/iniciallicitacoes.aspx and https://www.compras.df.gov.br/publico/item_em_andamento.asp respectivelly. Future plans are to provide an URL and page specific informations to make the crawl.
+    php artisan scrape https://kaabsimas.github.io -f ".nav-item"
+	#it returns
+
+       Sobre
+       Experiência
+       Habilidades
+       Interesses
+
+If you wish to get raw HTML code include the `--html` option
+
+    php artisan scrape https://kaabsimas.github.io -f ".nav-item" --html
+    #which returns
+    <a class="nav-link js-scroll-trigger" href="#about">Sobre</a>
+    <a class="nav-link js-scroll-trigger" href="#experience">Experiência</a>
+	<a class="nav-link js-scroll-trigger" href="#skills">Habilidades</a>
+    <a class="nav-link js-scroll-trigger" href="#interests">Interesses</a>
+
+## Forms
+The scrape command has also two options to perform your search in a returned page from a submited form:
+
+    php artisan scrape http://www.scf2.sebrae.com.br/portalcf/ -f '.form-searchresult' -s 'Pesquisar' -d '{"ctl00$ContentPlaceHolder1$ddSituacao":2, "ctl00$ContentPlaceHolder1$ddModalidade":6, "ctl00$ContentPlaceHolder1$ddAno":2018}'
+
+Here we use the `-s` or `--submit` option with the value of a submit button, 'Pesquisar'.
+The `-d` or `--data` option is used to provide the form input values, in the shape of an valid JSON object. 
+
+
+Next plans are to implement javascript execution, to run through paginations where it is required, and support specific url configured classes with custom methods. 
