@@ -3,10 +3,14 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Goutte\Client;
-use GuzzleHttp\Client as GuzzleClient;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\DomCrawler\Crawler;
+
+use Behat\Mink\Element\ElementInterface;
+use Behat\Mink\Element\NodeElement;
+use Behat\Mink\Element\DocumentElement;
+
+use \App\Components\Scraper\Scraper;
+use \App\Components\Scraper\Configuration;
 
 class ScrapeBiddings extends Command
 {
@@ -41,6 +45,13 @@ class ScrapeBiddings extends Command
     ];
 
     /**
+    * The scraper instance
+    *
+    * @var \App\Components\Scraper\Scraper
+    */
+    private $scraper;
+
+    /**
      * Create a new command instance.
      *
      * @return void
@@ -57,71 +68,68 @@ class ScrapeBiddings extends Command
      */
     public function handle()
     {
+        $this->scraper = new Scraper( new Configuration( $this->options() ) );
+
         $url = $this->argument('url-index');
-        if($url && array_key_exists($url, $this->urls))
-        {
-            switch ($url) {
-                case 'ecompras':
-                    $this->ecompras();
-                    break;
-                case 'cnpq':
-                    $this->cnpq();
-                    break;
-                default:
-                    # code...
-                    break;
-            }
-        }else{
-            $crawler = $this->request( $url );
-            if( $filter = $this->option('filter') ){
-                $crawler = $crawler->filter($filter);
-            }
-            $this->response( $crawler );
+        
+        $page = $this->request( $url );
+        if( $filter = $this->option('filter') ){
+            $page = $page->findAll('css', $filter);
         }
+        $this->response( $page );
     }
 
-    private function request( $url )
+    private function request( $url ): DocumentElement
     {
         
-        $crawler = \Goutte::request('GET', $url);
+        $page = $this->scraper->visit($url);
         $submit = $this->option('submit');
         if( $submit ){
-            $form = $crawler->selectButton( $submit )->form();
+            $forms = $page->findAll('css', 'form');
+            $form = array_map(function($form) use ($submit){
+                if( $form->has('css', "input[type=\"submit\"][value=\"{$submit}\"]") )
+                    return $form;
+            }, $forms)[0];
+
             $data = json_decode($this->option('data'), true) ?? [];
-            $crawler = (new Client())->submit($form, $data);
+            foreach( $data as $input => $value ){
+                $input = $form->findField( $input );
+                $input->setValue( $value );
+            }
+            $page = $this->scraper->submit($form);
+            dd( $page );
+            die();
         }
-        return $crawler;
+        return $page;
     }
 
-    private function out( Crawler $content )
+    private function out( ElementInterface $content )
     {
         if( $this->option('html') ){
-            $this->line( $content->html() );
+            $this->line( $content->getOuterHtml() );
         }else{
-            $this->line( $content->text() );
+            $this->line( $content->getText() );
         }
     }
 
-    private function response( Crawler $crawler )
+    private function response( $element )
     {
-        $count = $crawler->count();
+        $count = count($element);
         if( $this->option('amount') ){
             $this->line( $count );
             exit();
         }
 
-        if( $count > 1 ){
-            $crawler->each(function($item){
+        if( $count > 0 ){
+            foreach( $element as $item){
                 $this->out($item);
-            });
-        }else if( $count > 0 ){
-            $this->out($crawler);
+            };
         }else{
-            dd( $crawler );
+            dd( $element );
         }
     }
 
-    private function ecompras()
+    /*private function ecompras()
     {
         $crawler = \Goutte::request('GET', $this->urls['ecompras']);
         // TODO: understand what is that SSL issue and fix it
@@ -133,10 +141,10 @@ class ScrapeBiddings extends Command
         $crawler->filter('.borda-verde a.tribuchet-11-escuro')->each(function ($node) {
             $this->line($node->text());
         });
-    }
+    }*/
 
 
-    private function cnpq()
+    /*private function cnpq()
     {
         //http://www.cnpq.br/web/guest/licitacoes?p_p_id=licitacoescnpqportlet_WAR_licitacoescnpqportlet_INSTANCE_BHfsvMBDwU0V&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=column-2&p_p_col_pos=1&p_p_col_count=2&pagina=" + pagina + "&delta=10" + "&registros=1500
         $crawler = \Goutte::request('GET', $this->urls['cnpq']);
@@ -168,7 +176,7 @@ class ScrapeBiddings extends Command
         $content = array_merge([['Licitação','Descrição', 'Abertura', 'Publicações']], $content);
         $this->write('licitações', $content);
         return;
-    } 
+    } */
 
     private function write( $filename, $content )
     {

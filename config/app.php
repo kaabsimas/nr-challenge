@@ -166,7 +166,6 @@ return [
         /*
          * Package Service Providers...
          */
-        Weidner\Goutte\GoutteServiceProvider::class,
         Maatwebsite\Excel\ExcelServiceProvider::class,
         //
 
@@ -209,7 +208,6 @@ return [
         'Excel' => Maatwebsite\Excel\Facades\Excel::class,
         'File' => Illuminate\Support\Facades\File::class,
         'Gate' => Illuminate\Support\Facades\Gate::class,
-        'Goutte' => Weidner\Goutte\GoutteFacade::class,
         'Hash' => Illuminate\Support\Facades\Hash::class,
         'Lang' => Illuminate\Support\Facades\Lang::class,
         'Log' => Illuminate\Support\Facades\Log::class,
